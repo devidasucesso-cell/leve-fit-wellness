@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserData, IMCCategory, NotificationSettings, ProgressEntry } from '@/types';
 
+// Códigos de acesso válidos
+const VALID_ACCESS_CODES = ['LEVE2024', 'FIT2024', 'SAUDE2024'];
+
 interface UserContextType {
   user: UserData | null;
   setUser: (user: UserData | null) => void;
   isLoggedIn: boolean;
-  login: (name: string, code: string) => void;
+  login: (name: string, code: string) => { success: boolean; error?: string };
   logout: () => void;
   updateIMC: (weight: number, height: number) => void;
   addWaterIntake: () => void;
@@ -68,10 +71,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setUserState(newUser);
   };
 
-  const login = (name: string, code: string) => {
+  const login = (name: string, code: string): { success: boolean; error?: string } => {
+    const upperCode = code.toUpperCase().trim();
+    
+    if (!VALID_ACCESS_CODES.includes(upperCode)) {
+      return { success: false, error: 'Código de acesso inválido. Use: LEVE2024, FIT2024 ou SAUDE2024' };
+    }
+
     setUserState({
       name,
-      accessCode: code,
+      accessCode: upperCode,
       weight: 0,
       height: 0,
       imc: 0,
@@ -79,6 +88,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       waterIntake: 0,
       capsuleDays: [],
     });
+    
+    return { success: true };
   };
 
   const logout = () => {

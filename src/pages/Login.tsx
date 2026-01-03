@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Leaf, User, Key } from 'lucide-react';
+import { Leaf, User, Key, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Login = () => {
@@ -14,11 +14,19 @@ const Login = () => {
   const { login } = useUser();
   const navigate = useNavigate();
 
+  const [error, setError] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     if (name.trim() && code.trim()) {
-      login(name.trim(), code.trim());
-      navigate('/dashboard');
+      const result = login(name.trim(), code.trim());
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error || 'Erro ao fazer login');
+      }
     }
   };
 
@@ -74,9 +82,16 @@ const Login = () => {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 className="bg-secondary border-0 h-12"
-                required
-              />
+              required
+            />
             </div>
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <Button 
               type="submit" 
