@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_used: boolean
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       capsule_days: {
         Row: {
           created_at: string
@@ -70,6 +97,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          code_validated: boolean | null
           created_at: string
           height: number | null
           id: string
@@ -85,6 +113,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          code_validated?: boolean | null
           created_at?: string
           height?: number | null
           id?: string
@@ -100,6 +129,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          code_validated?: boolean | null
           created_at?: string
           height?: number | null
           id?: string

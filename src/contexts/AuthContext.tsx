@@ -22,6 +22,7 @@ interface Profile {
   is_approved: boolean;
   kit_type: string | null;
   treatment_start_date: string | null;
+  code_validated: boolean;
 }
 
 interface AuthContextType {
@@ -31,6 +32,7 @@ interface AuthContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
   isApproved: boolean;
+  isCodeValidated: boolean;
   isAdmin: boolean;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
@@ -104,6 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         is_approved: data.is_approved ?? false,
         kit_type: data.kit_type ?? null,
         treatment_start_date: data.treatment_start_date ?? null,
+        code_validated: data.code_validated ?? false,
       });
     }
   };
@@ -383,6 +386,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         isLoggedIn: !!user,
         isApproved: profile?.is_approved ?? false,
+        isCodeValidated: profile?.code_validated ?? false,
         isAdmin,
         logout,
         updateProfile,

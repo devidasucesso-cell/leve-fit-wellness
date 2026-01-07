@@ -15,13 +15,14 @@ import CalendarPage from "./pages/CalendarPage";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import PendingApproval from "./pages/PendingApproval";
+import CodeVerification from "./pages/CodeVerification";
 import NotFound from "./pages/NotFound";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn, isLoading, isApproved, isAdmin } = useAuth();
+  const { isLoggedIn, isLoading, isApproved, isCodeValidated, isAdmin } = useAuth();
   
   if (isLoading) {
     return (
@@ -35,7 +36,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Admin always has access, non-admin users need approval
+  // First check: code must be validated (unless admin)
+  if (!isAdmin && !isCodeValidated) {
+    return <Navigate to="/code-verification" replace />;
+  }
+
+  // Second check: admin always has access, non-admin users need approval
   if (!isAdmin && !isApproved) {
     return <Navigate to="/pending-approval" replace />;
   }
@@ -43,8 +49,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const ApprovalRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn, isLoading, isApproved, isAdmin } = useAuth();
+const CodeVerificationRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isLoggedIn, isLoading, isCodeValidated, isAdmin } = useAuth();
   
   if (isLoading) {
     return (
@@ -56,6 +62,34 @@ const ApprovalRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isLoggedIn) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // If code already validated or is admin, go to next step
+  if (isCodeValidated || isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const ApprovalRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isLoggedIn, isLoading, isApproved, isCodeValidated, isAdmin } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (!isLoggedIn) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // First, code must be validated
+  if (!isAdmin && !isCodeValidated) {
+    return <Navigate to="/code-verification" replace />;
   }
 
   // If already approved or is admin, redirect to dashboard
@@ -71,6 +105,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
+      <Route path="/code-verification" element={<CodeVerificationRoute><CodeVerification /></CodeVerificationRoute>} />
       <Route path="/pending-approval" element={<ApprovalRoute><PendingApproval /></ApprovalRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
