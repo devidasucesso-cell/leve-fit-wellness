@@ -22,7 +22,7 @@ import PWAInstallPrompt from "./components/PWAInstallPrompt";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn, isLoading, isApproved, isCodeValidated, isAdmin } = useAuth();
+  const { isLoggedIn, isLoading, isCodeValidated, isAdmin } = useAuth();
   
   if (isLoading) {
     return (
@@ -36,14 +36,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // First check: code must be validated (unless admin)
+  // Code must be validated (unless admin)
   if (!isAdmin && !isCodeValidated) {
     return <Navigate to="/code-verification" replace />;
-  }
-
-  // Second check: admin always has access, non-admin users need approval
-  if (!isAdmin && !isApproved) {
-    return <Navigate to="/pending-approval" replace />;
   }
 
   return <>{children}</>;
@@ -72,33 +67,7 @@ const CodeVerificationRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const ApprovalRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn, isLoading, isApproved, isCodeValidated, isAdmin } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-  
-  if (!isLoggedIn) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // First, code must be validated
-  if (!isAdmin && !isCodeValidated) {
-    return <Navigate to="/code-verification" replace />;
-  }
-
-  // If already approved or is admin, redirect to dashboard
-  if (isApproved || isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-};
+// ApprovalRoute removed - approval no longer required
 
 const AppRoutes = () => {
   return (
@@ -106,7 +75,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/code-verification" element={<CodeVerificationRoute><CodeVerification /></CodeVerificationRoute>} />
-      <Route path="/pending-approval" element={<ApprovalRoute><PendingApproval /></ApprovalRoute>} />
+      <Route path="/pending-approval" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/recipes" element={<ProtectedRoute><Recipes /></ProtectedRoute>} />

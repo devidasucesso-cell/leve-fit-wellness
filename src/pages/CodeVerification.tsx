@@ -84,10 +84,13 @@ const CodeVerification = () => {
         throw updateCodeError;
       }
 
-      // Update profile to mark code as validated
+      // Update profile to mark code as validated and auto-approve
       const { error: updateProfileError } = await supabase
         .from('profiles')
-        .update({ code_validated: true })
+        .update({ 
+          code_validated: true,
+          is_approved: true 
+        })
         .eq('user_id', user.id);
 
       if (updateProfileError) {
