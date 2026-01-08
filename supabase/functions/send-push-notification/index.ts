@@ -31,8 +31,17 @@ async function createVapidJwt(audience: string, subject: string, privateKeyBase6
   const payloadB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
+  // Clean the private key - handle both URL-safe and standard base64
+  const cleanedKey = privateKeyBase64
+    .replace(/[\r\n\s]/g, '') // Remove whitespace
+    .replace(/-/g, '+')       // Convert URL-safe to standard base64
+    .replace(/_/g, '/');      // Convert URL-safe to standard base64
+  
+  // Add padding if needed
+  const paddedKey = cleanedKey + '='.repeat((4 - cleanedKey.length % 4) % 4);
+
   // Import the private key
-  const privateKeyBytes = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0));
+  const privateKeyBytes = Uint8Array.from(atob(paddedKey), c => c.charCodeAt(0));
   
   const key = await crypto.subtle.importKey(
     'pkcs8',
@@ -154,19 +163,18 @@ const handler = async (req: Request): Promise<Response> => {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Validate JWT and get user claims
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    // Use getUser to validate the JWT and get user info
+    const { data: userData, error: userError } = await userClient.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
-      console.error('JWT validation failed:', claimsError);
+    if (userError || !userData?.user) {
+      console.error('User validation failed:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const authenticatedUserId = claimsData.claims.sub;
+    const authenticatedUserId = userData.user.id;
     console.log('Authenticated user:', authenticatedUserId);
 
     // Use service role client for database operations
