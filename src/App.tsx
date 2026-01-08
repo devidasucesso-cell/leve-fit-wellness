@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import PendingApproval from "./pages/PendingApproval";
 import CodeVerification from "./pages/CodeVerification";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
@@ -74,6 +75,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/code-verification" element={<CodeVerificationRoute><CodeVerification /></CodeVerificationRoute>} />
       <Route path="/pending-approval" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
