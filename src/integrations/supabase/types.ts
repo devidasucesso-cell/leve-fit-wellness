@@ -229,6 +229,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_access_code: {
+        Args: { claiming_user_id: string; code_input: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

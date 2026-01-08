@@ -11,25 +11,102 @@ interface PushNotificationRequest {
   userId?: string;
 }
 
+// Helper to encode to base64url
+function base64urlEncode(data: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...data));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Create VAPID JWT for web push authentication
+async function createVapidJwt(audience: string, subject: string, privateKeyBase64: string): Promise<string> {
+  const header = { alg: 'ES256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    aud: audience,
+    exp: now + 12 * 60 * 60, // 12 hours
+    sub: subject,
+  };
+
+  const headerB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(header)));
+  const payloadB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const unsignedToken = `${headerB64}.${payloadB64}`;
+
+  // Import the private key
+  const privateKeyBytes = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0));
+  
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    privateKeyBytes,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    new TextEncoder().encode(unsignedToken)
+  );
+
+  const signatureB64 = base64urlEncode(new Uint8Array(signature));
+  return `${unsignedToken}.${signatureB64}`;
+}
+
 async function sendWebPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: { title: string; body: string; icon?: string }
-) {
+): Promise<{ success: boolean; statusCode?: number; error?: string }> {
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-  if (!vapidPrivateKey) {
-    throw new Error('VAPID_PRIVATE_KEY not configured');
+  const vapidPublicKey = Deno.env.get('VITE_VAPID_PUBLIC_KEY');
+  const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@levefit.com';
+  
+  if (!vapidPrivateKey || !vapidPublicKey) {
+    console.warn('VAPID keys not configured - notifications will be sent without VAPID auth');
   }
 
-  // Use web-push library equivalent for Deno
-  const response = await fetch(subscription.endpoint, {
-    method: 'POST',
-    headers: {
+  try {
+    const url = new URL(subscription.endpoint);
+    const audience = `${url.protocol}//${url.host}`;
+    
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+      'TTL': '86400',
+    };
 
-  return response;
+    // Add VAPID authentication if keys are available
+    if (vapidPrivateKey && vapidPublicKey) {
+      try {
+        const jwt = await createVapidJwt(audience, vapidSubject, vapidPrivateKey);
+        headers['Authorization'] = `vapid t=${jwt}, k=${vapidPublicKey}`;
+      } catch (vapidError) {
+        console.warn('Failed to create VAPID JWT, sending without auth:', vapidError);
+      }
+    }
+
+    const response = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('Push notification failed:', response.status, await response.text());
+      return { 
+        success: false, 
+        statusCode: response.status,
+        error: `HTTP ${response.status}` 
+      };
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Web push error:', error);
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -261,18 +338,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     let successCount = 0;
     let failureCount = 0;
+    const expiredSubscriptions: string[] = [];
 
     for (const sub of subscriptions || []) {
-      try {
-        await sendWebPushNotification(
-          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-          notificationPayload
-        );
+      const result = await sendWebPushNotification(
+        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+        notificationPayload
+      );
+      
+      if (result.success) {
         successCount++;
-      } catch (error) {
-        console.error('Failed to send notification:', error);
+      } else {
         failureCount++;
+        // Track expired subscriptions (410 Gone) for cleanup
+        if (result.statusCode === 410) {
+          expiredSubscriptions.push(sub.id);
+        }
       }
+    }
+
+    // Clean up expired subscriptions
+    if (expiredSubscriptions.length > 0) {
+      console.log(`Cleaning up ${expiredSubscriptions.length} expired subscriptions`);
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .in('id', expiredSubscriptions);
     }
 
     console.log(`Notifications sent: ${successCount} success, ${failureCount} failed`);
@@ -287,10 +378,11 @@ const handler = async (req: Request): Promise<Response> => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in send-push-notification:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
