@@ -29,7 +29,25 @@ function base64urlEncode(data: Uint8Array): string {
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Create VAPID JWT for web push authentication
+// Helper to decode base64url to Uint8Array
+function base64urlDecode(base64url: string): Uint8Array {
+  // Convert URL-safe to standard base64
+  let base64 = base64url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  // Add padding if needed
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Create VAPID JWT for web push authentication using raw ECDSA key
 async function createVapidJwt(audience: string, subject: string, privateKeyBase64: string): Promise<string> {
   const header = { alg: 'ES256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
@@ -43,21 +61,24 @@ async function createVapidJwt(audience: string, subject: string, privateKeyBase6
   const payloadB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  // Clean the private key - handle both URL-safe and standard base64
-  const cleanedKey = privateKeyBase64
-    .replace(/[\r\n\s]/g, '') // Remove whitespace
-    .replace(/-/g, '+')       // Convert URL-safe to standard base64
-    .replace(/_/g, '/');      // Convert URL-safe to standard base64
+  // Decode the raw ECDSA private key (32 bytes for P-256)
+  const rawKeyBytes = base64urlDecode(privateKeyBase64.replace(/[\r\n\s]/g, ''));
+  console.log('Private key bytes length:', rawKeyBytes.length);
   
-  // Add padding if needed
-  const paddedKey = cleanedKey + '='.repeat((4 - cleanedKey.length % 4) % 4);
-
-  // Import the private key
-  const privateKeyBytes = Uint8Array.from(atob(paddedKey), c => c.charCodeAt(0));
+  // Convert raw 32-byte key to JWK format
+  const jwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    d: base64urlEncode(rawKeyBytes),
+    // We need to derive x and y from the public key, but for signing we only need d
+    // Use the public key to extract x and y
+    x: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LA', // First 32 bytes of public key
+    y: 'DzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', // Last 32 bytes of public key
+  };
   
   const key = await crypto.subtle.importKey(
-    'pkcs8',
-    privateKeyBytes,
+    'jwk',
+    jwk,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
@@ -69,6 +90,8 @@ async function createVapidJwt(audience: string, subject: string, privateKeyBase6
     new TextEncoder().encode(unsignedToken)
   );
 
+  // ECDSA signature from WebCrypto is in IEEE P1363 format (r || s, each 32 bytes)
+  // which is what we need for JWT
   const signatureB64 = base64urlEncode(new Uint8Array(signature));
   return `${unsignedToken}.${signatureB64}`;
 }

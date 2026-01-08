@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -45,18 +45,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/code-verification" replace />;
   }
 
-  // Kit selection is handled separately - users without kit go to dashboard
-  // They can change kit in settings
+  // New users without kit_type must select a kit first
+  if (!isAdmin && !profile?.kit_type) {
+    return <Navigate to="/kit-selection" replace />;
+  }
 
   return <>{children}</>;
 };
 
 const KitSelectionRoute = ({ children }: { children: React.ReactNode }) => {
   const { isLoggedIn, isLoading, isCodeValidated, isAdmin, profile } = useAuth();
-  const location = useLocation();
-  
-  // Check if user came from code verification
-  const fromCodeVerification = location.state?.fromCodeVerification === true;
   
   // Wait for both auth and profile to load
   if (isLoading || (isLoggedIn && !profile)) {
@@ -76,8 +74,8 @@ const KitSelectionRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/code-verification" replace />;
   }
 
-  // If kit already selected OR user didn't come from code verification, go to dashboard
-  if (profile?.kit_type || !fromCodeVerification) {
+  // If kit already selected, go to dashboard
+  if (profile?.kit_type) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -100,9 +98,9 @@ const CodeVerificationRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // If code already validated or is admin, go to kit selection (or dashboard if kit selected)
+  // If code already validated or is admin, go to dashboard (kit selection handles its own redirect)
   if (isCodeValidated || isAdmin) {
-    return <Navigate to="/kit-selection" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
