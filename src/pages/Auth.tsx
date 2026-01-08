@@ -155,6 +155,7 @@ const Auth = () => {
       const redirectUrl = `${window.location.origin}/`;
       const selectedKit = sessionStorage.getItem('selectedKit') || '1_pote';
       
+      // Pass kit_type in user metadata - the database trigger will handle it atomically
       const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
@@ -162,6 +163,7 @@ const Auth = () => {
           emailRedirectTo: redirectUrl,
           data: {
             name: signupName,
+            kit_type: selectedKit,
           },
         },
       });
@@ -181,21 +183,8 @@ const Auth = () => {
           });
         }
       } else {
-        // Update profile with kit info
+        // Profile is created atomically by the database trigger with kit_type
         if (data.user) {
-          const today = new Date().toISOString().split('T')[0];
-          
-          // Wait a bit for the trigger to create the profile
-          setTimeout(async () => {
-            await supabase
-              .from('profiles')
-              .update({
-                kit_type: selectedKit,
-                treatment_start_date: today,
-              })
-              .eq('user_id', data.user!.id);
-          }, 1000);
-
           // Notify admin via edge function
           try {
             await supabase.functions.invoke('notify-admin-new-user', {
