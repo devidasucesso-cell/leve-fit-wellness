@@ -171,17 +171,20 @@ export const usePushNotifications = () => {
       const p256dh = btoa(String.fromCharCode(...new Uint8Array(p256dhKey)));
       const auth = btoa(String.fromCharCode(...new Uint8Array(authKey)));
 
-      // Save subscription to database (upsert to handle existing subscriptions)
+      // First, delete any existing subscription for this user
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Then insert the new subscription
       const { error } = await supabase
         .from('push_subscriptions')
-        .upsert({
+        .insert({
           user_id: user.id,
           endpoint: subscription.endpoint,
           p256dh,
           auth,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id',
         });
 
       if (error) throw error;
