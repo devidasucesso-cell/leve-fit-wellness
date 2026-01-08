@@ -39,62 +39,44 @@ const CodeVerification = () => {
     setIsLoading(true);
 
     try {
-      // Check if code exists and is not used
-      const { data: codeData, error: fetchError } = await supabase
-        .from('access_codes')
-        .select('*')
-        .eq('code', code.toUpperCase().trim())
-        .maybeSingle();
+      // Use atomic RPC function to prevent race conditions
+      const { data, error } = await supabase.rpc('claim_access_code', {
+        code_input: code.toUpperCase().trim(),
+        claiming_user_id: user.id
+      });
 
-      if (fetchError) {
-        throw fetchError;
+      if (error) {
+        throw error;
       }
 
-      if (!codeData) {
+      const result = data as { success: boolean; error?: string; code_id?: string };
+
+      if (!result.success) {
+        let errorTitle = "Erro";
+        let errorDescription = "Ocorreu um erro ao verificar o código.";
+
+        switch (result.error) {
+          case 'CODE_NOT_FOUND':
+            errorTitle = "Código inválido";
+            errorDescription = "O código inserido não existe.";
+            break;
+          case 'CODE_ALREADY_USED':
+            errorTitle = "Código já utilizado";
+            errorDescription = "Este código já foi usado por outro usuário.";
+            break;
+          case 'CODE_LOCKED':
+            errorTitle = "Código em processamento";
+            errorDescription = "Este código está sendo processado. Tente novamente em alguns segundos.";
+            break;
+        }
+
         toast({
-          title: "Código inválido",
-          description: "O código inserido não existe.",
+          title: errorTitle,
+          description: errorDescription,
           variant: "destructive",
         });
         setIsLoading(false);
         return;
-      }
-
-      if (codeData.is_used) {
-        toast({
-          title: "Código já utilizado",
-          description: "Este código já foi usado por outro usuário.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Mark code as used
-      const { error: updateCodeError } = await supabase
-        .from('access_codes')
-        .update({
-          is_used: true,
-          used_by: user.id,
-          used_at: new Date().toISOString(),
-        })
-        .eq('id', codeData.id);
-
-      if (updateCodeError) {
-        throw updateCodeError;
-      }
-
-      // Update profile to mark code as validated and auto-approve
-      const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update({ 
-          code_validated: true,
-          is_approved: true 
-        })
-        .eq('user_id', user.id);
-
-      if (updateProfileError) {
-        throw updateProfileError;
       }
 
       toast({
