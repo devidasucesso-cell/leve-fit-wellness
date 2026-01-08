@@ -20,11 +20,12 @@ import ResetPassword from "./pages/ResetPassword";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import KitSelectionPage from "./pages/KitSelectionPage";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn, isLoading, isCodeValidated, isAdmin } = useAuth();
+  const { isLoggedIn, isLoading, isCodeValidated, isAdmin, profile } = useAuth();
   
   if (isLoading) {
     return (
@@ -41,6 +42,39 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Code must be validated (unless admin)
   if (!isAdmin && !isCodeValidated) {
     return <Navigate to="/code-verification" replace />;
+  }
+
+  // Kit must be selected (unless admin)
+  if (!isAdmin && !profile?.kit_type) {
+    return <Navigate to="/kit-selection" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const KitSelectionRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isLoggedIn, isLoading, isCodeValidated, isAdmin, profile } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (!isLoggedIn) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Code must be validated first (unless admin)
+  if (!isAdmin && !isCodeValidated) {
+    return <Navigate to="/code-verification" replace />;
+  }
+
+  // If kit already selected, go to dashboard
+  if (profile?.kit_type) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -61,9 +95,9 @@ const CodeVerificationRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // If code already validated or is admin, go to next step
+  // If code already validated or is admin, go to kit selection (or dashboard if kit selected)
   if (isCodeValidated || isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/kit-selection" replace />;
   }
 
   return <>{children}</>;
@@ -79,6 +113,7 @@ const AppRoutes = () => {
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/code-verification" element={<CodeVerificationRoute><CodeVerification /></CodeVerificationRoute>} />
+      <Route path="/kit-selection" element={<KitSelectionRoute><KitSelectionPage /></KitSelectionRoute>} />
       <Route path="/pending-approval" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
