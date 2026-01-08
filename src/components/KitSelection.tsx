@@ -25,7 +25,10 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6">
+      {/* Background with transparency support */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-primary/5 via-accent/5 to-primary/10" />
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -36,12 +39,12 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-          className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-6 shadow-xl"
+          className="inline-flex items-center justify-center w-20 h-20 gradient-primary rounded-full mb-6 shadow-glow"
         >
-          <Leaf className="w-10 h-10 text-white" />
+          <Leaf className="w-10 h-10 text-primary-foreground" />
         </motion.div>
 
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
           Bem-vindo ao LeveFit!
         </h1>
         
@@ -53,7 +56,7 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg mb-6"
+          className="glass-card rounded-2xl p-6 mb-6"
         >
           <RadioGroup value={selectedKit} onValueChange={setSelectedKit} className="space-y-4">
             {kits.map((kit, index) => (
@@ -67,16 +70,16 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
                   htmlFor={kit.id}
                   className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
                     selectedKit === kit.id
-                      ? 'bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-500'
-                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                      ? 'bg-primary/10 border-2 border-primary'
+                      : 'bg-secondary border-2 border-transparent hover:bg-secondary/80'
                   }`}
                 >
                   <RadioGroupItem value={kit.id} id={kit.id} className="sr-only" />
                   <div className="flex-shrink-0">
-                    <Package className={`w-8 h-8 ${selectedKit === kit.id ? 'text-green-600' : 'text-gray-400'}`} />
+                    <Package className={`w-8 h-8 ${selectedKit === kit.id ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className={`font-semibold text-lg ${selectedKit === kit.id ? 'text-green-700' : 'text-gray-700'}`}>
+                    <p className={`font-semibold text-lg ${selectedKit === kit.id ? 'text-primary' : 'text-foreground'}`}>
                       {kit.label}
                     </p>
                     <p className="text-sm text-muted-foreground">{kit.description}</p>
@@ -85,9 +88,9 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"
+                      className="w-6 h-6 bg-primary rounded-full flex items-center justify-center"
                     >
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </motion.div>
@@ -101,7 +104,7 @@ const KitSelection = ({ onSelect }: KitSelectionProps) => {
         <Button
           onClick={handleContinue}
           disabled={!selectedKit}
-          className="w-full h-14 text-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-14 text-lg gradient-primary text-primary-foreground shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continuar
           <ArrowRight className="w-5 h-5 ml-2" />
