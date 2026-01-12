@@ -35,7 +35,7 @@ const steps: OnboardingStep[] = [
   {
     id: 'imc',
     title: 'Calculadora de IMC',
-    description: 'No Dashboard, você encontra a calculadora de IMC. Digite seu peso e altura para calcular. O app vai personalizar receitas e dicas com base no seu resultado!',
+    description: 'Na tela inicial, você encontra a calculadora de IMC. Digite seu peso e altura para calcular. O app vai personalizar receitas e dicas com base no seu resultado!',
     icon: <Scale className="w-8 h-8" />,
     emoji: '⚖️',
   },
@@ -91,7 +91,7 @@ const steps: OnboardingStep[] = [
   {
     id: 'settings',
     title: 'Configurações',
-    description: 'Em Configurações (ícone de engrenagem), você pode ajustar lembretes de água e cápsula, ativar notificações push e alterar seu kit se necessário.',
+    description: 'Em Configurações (ícone de engrenagem), você pode ajustar lembretes de água e cápsula, ativar notificações e alterar seu kit se necessário.',
     icon: <Settings className="w-8 h-8" />,
     emoji: '⚙️',
   },

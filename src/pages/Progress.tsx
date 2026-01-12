@@ -215,7 +215,7 @@ const Progress = () => {
                 ) : (
                   <div className="h-48 flex items-center justify-center text-muted-foreground">
                     <p className="text-center">
-                      Adicione seu peso no Dashboard para<br />
+                      Adicione seu peso na tela inicial para<br />
                       acompanhar sua evolução
                     </p>
                   </div>
