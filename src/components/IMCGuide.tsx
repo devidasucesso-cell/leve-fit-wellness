@@ -83,7 +83,7 @@ const IMCGuide: React.FC<IMCGuideProps> = ({ imcCategory, onClose }) => {
     {
       icon: Bell,
       title: '1. Configure seus lembretes',
-      description: 'Ative notificações push para lembrar de tomar sua cápsula e beber água',
+      description: 'Ative notificações para lembrar de tomar sua cápsula e beber água',
       action: () => navigate('/settings'),
       actionLabel: 'Configurar'
     },
@@ -182,7 +182,7 @@ const IMCGuide: React.FC<IMCGuideProps> = ({ imcCategory, onClose }) => {
       <div className="mt-6 p-4 rounded-xl bg-warning/10 border border-warning/20">
         <p className="text-sm text-muted-foreground">
           <strong className="text-warning">💡 Importante:</strong> Para receber lembretes 
-          mesmo com o app fechado, ative as notificações push nas configurações.
+          mesmo com o app fechado, ative as notificações nas configurações.
         </p>
       </div>
 

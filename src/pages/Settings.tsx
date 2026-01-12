@@ -260,7 +260,7 @@ const Settings = () => {
                 <BellRing className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">Notificações Push</h3>
+                <h3 className="font-semibold text-foreground">Notificações</h3>
                 <p className="text-sm text-muted-foreground">
                   {isSubscribed 
                     ? 'Receba lembretes mesmo com o app fechado' 
