@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 // VAPID Public Key - this is safe to expose in client code
-// This key pair was generated using web-push library
 const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
 
 type PermissionStatus = 'granted' | 'denied' | 'default' | 'unsupported';
@@ -31,31 +30,72 @@ export const usePushNotifications = () => {
     };
 
     checkSupport();
+  }, []);
 
-    if (isSupported && user) {
-      checkSubscription();
+  // Check subscription status when user changes
+  useEffect(() => {
+    if (user) {
+      // Small delay to ensure service worker is ready
+      const timer = setTimeout(() => {
+        checkSubscription();
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSubscribed(false);
     }
-  }, [user, isSupported]);
+  }, [user]);
 
   const checkSubscription = async () => {
+    if (!user) {
+      setIsSubscribed(false);
+      return;
+    }
+    
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      // First check if we have a subscription in the database for this user
+      const { data: dbSubscription, error } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint')
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      // Also verify subscription exists in database
-      if (subscription && user) {
-        const { data } = await supabase
-          .from('push_subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('endpoint', subscription.endpoint)
-          .maybeSingle();
-        
-        // If subscription exists locally but not in DB, update state
-        if (!data) {
-          setIsSubscribed(false);
+      if (error) {
+        console.error('Error checking subscription in DB:', error);
+        setIsSubscribed(false);
+        return;
+      }
+      
+      if (!dbSubscription) {
+        console.log('No subscription found in database');
+        setIsSubscribed(false);
+        return;
+      }
+      
+      // Also verify we have a local browser subscription
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          
+          if (subscription && subscription.endpoint === dbSubscription.endpoint) {
+            console.log('Subscription verified - DB and browser match');
+            setIsSubscribed(true);
+          } else if (subscription) {
+            // Browser has a different subscription
+            console.log('Browser subscription differs from DB');
+            setIsSubscribed(false);
+          } else {
+            // No browser subscription
+            console.log('No browser subscription found');
+            setIsSubscribed(false);
+          }
+        } catch (swError) {
+          console.error('Service worker check failed:', swError);
+          // Assume subscribed if DB has record
+          setIsSubscribed(true);
         }
+      } else {
+        setIsSubscribed(true);
       }
     } catch (error) {
       console.error('Error checking subscription:', error);
@@ -91,7 +131,7 @@ export const usePushNotifications = () => {
     if (!isSupported) {
       toast({
         title: 'Não suportado',
-        description: 'Seu navegador não suporta notificações push.',
+        description: 'Seu navegador não suporta notificações.',
         variant: 'destructive',
       });
       return false;
@@ -216,11 +256,13 @@ export const usePushNotifications = () => {
     setIsLoading(true);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
 
-      if (subscription) {
-        await subscription.unsubscribe();
+        if (subscription) {
+          await subscription.unsubscribe();
+        }
       }
 
       // Remove from database
@@ -232,7 +274,7 @@ export const usePushNotifications = () => {
       setIsSubscribed(false);
       toast({
         title: 'Notificações desativadas',
-        description: 'Você não receberá mais lembretes push.',
+        description: 'Você não receberá mais lembretes.',
       });
 
       return true;
@@ -250,10 +292,19 @@ export const usePushNotifications = () => {
   }, [user, toast]);
 
   const sendTestNotification = useCallback(async () => {
-    if (!user || !isSubscribed) {
+    if (!user) {
       toast({
         title: 'Erro',
-        description: 'Você precisa ativar as notificações primeiro.',
+        description: 'Você precisa estar logado.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (!isSubscribed) {
+      toast({
+        title: 'Atenção',
+        description: 'Ative as notificações primeiro clicando em "Ativar".',
         variant: 'destructive',
       });
       return false;
@@ -272,6 +323,8 @@ export const usePushNotifications = () => {
           description: 'Nenhuma assinatura encontrada. Tente desativar e ativar novamente.',
           variant: 'destructive',
         });
+        // Reset subscription state
+        setIsSubscribed(false);
         return false;
       }
 
@@ -298,11 +351,11 @@ export const usePushNotifications = () => {
       case 'granted':
         return isSubscribed 
           ? 'Notificações ativas' 
-          : 'Permissão concedida, clique para ativar';
+          : 'Permissão concedida, clique em Ativar';
       case 'denied':
         return 'Notificações bloqueadas nas configurações do navegador';
       case 'default':
-        return 'Clique para ativar notificações';
+        return 'Clique em Ativar para receber lembretes';
       case 'unsupported':
         return 'Seu navegador não suporta notificações';
       default:
@@ -320,6 +373,7 @@ export const usePushNotifications = () => {
     sendTestNotification,
     requestNotificationPermission,
     getPermissionMessage,
+    refreshSubscription: checkSubscription,
   };
 };
 
