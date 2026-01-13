@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
-import { Trophy, Droplets, Pill, Flame, Star, Award, Target, Zap } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Trophy, Droplets, Pill, Flame, Star, Award, Target, Zap, Sparkles, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import confetti from 'canvas-confetti';
 
 interface Achievement {
   id: string;
@@ -21,7 +22,27 @@ interface AchievementsCardProps {
   totalWaterDays: number;
 }
 
+// Store unlocked achievements in localStorage to track new unlocks
+const UNLOCKED_KEY = 'levefit_unlocked_achievements';
+
+const getStoredUnlocked = (): string[] => {
+  try {
+    const stored = localStorage.getItem(UNLOCKED_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const setStoredUnlocked = (ids: string[]) => {
+  localStorage.setItem(UNLOCKED_KEY, JSON.stringify(ids));
+};
+
 const AchievementsCard = ({ capsuleDays, waterStreak, totalWaterDays }: AchievementsCardProps) => {
+  const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const previousUnlockedRef = useRef<string[]>(getStoredUnlocked());
+
   const achievements: Achievement[] = useMemo(() => [
     {
       id: 'first-capsule',
@@ -101,80 +122,198 @@ const AchievementsCard = ({ capsuleDays, waterStreak, totalWaterDays }: Achievem
     },
   ], [capsuleDays, totalWaterDays, waterStreak]);
 
+  // Check for newly unlocked achievements
+  useEffect(() => {
+    const currentUnlocked = achievements.filter(a => a.unlocked).map(a => a.id);
+    const previousUnlocked = previousUnlockedRef.current;
+    
+    // Find achievements that are now unlocked but weren't before
+    const newUnlocks = currentUnlocked.filter(id => !previousUnlocked.includes(id));
+    
+    if (newUnlocks.length > 0) {
+      // Get the first new unlock
+      const newAchievement = achievements.find(a => a.id === newUnlocks[0]);
+      if (newAchievement) {
+        setNewlyUnlocked(newAchievement);
+        setShowCelebration(true);
+        
+        // Trigger confetti
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#22c55e', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'],
+        });
+      }
+    }
+    
+    // Update stored unlocks
+    previousUnlockedRef.current = currentUnlocked;
+    setStoredUnlocked(currentUnlocked);
+  }, [achievements]);
+
+  const closeCelebration = () => {
+    setShowCelebration(false);
+    setNewlyUnlocked(null);
+  };
+
   const unlockedCount = achievements.filter(a => a.unlocked).length;
 
   return (
-    <Card className="p-3 sm:p-4 bg-card">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-            <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground text-sm sm:text-base">Conquistas</h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">{unlockedCount}/{achievements.length} desbloqueadas</p>
+    <>
+      <Card className="p-3 sm:p-4 bg-card">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground text-sm sm:text-base">Conquistas</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{unlockedCount}/{achievements.length} desbloqueadas</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-        {achievements.map((achievement, index) => (
-          <motion.div
-            key={achievement.id}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            className="relative group"
-          >
-            <div
-              className={cn(
-                "w-full aspect-square rounded-lg sm:rounded-xl flex items-center justify-center transition-all",
-                achievement.unlocked
-                  ? `bg-gradient-to-br ${achievement.color} shadow-lg`
-                  : "bg-muted/50 opacity-40"
-              )}
-            >
-              <span className={cn(
-                "scale-75 sm:scale-100",
-                achievement.unlocked ? "text-white" : "text-muted-foreground"
-              )}>
-                {achievement.icon}
-              </span>
-            </div>
-            
-            {/* Progress indicator */}
-            {!achievement.unlocked && achievement.progress !== undefined && (
-              <div className="absolute -bottom-0.5 sm:-bottom-1 left-1/2 -translate-x-1/2 text-[8px] sm:text-[10px] text-muted-foreground font-medium">
-                {achievement.progress}/{achievement.total}
-              </div>
-            )}
-
-            {/* Tooltip - hidden on mobile, visible on hover for desktop */}
-            <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[120px]">
-              <p className="text-xs font-medium text-foreground text-center">{achievement.name}</p>
-              <p className="text-[10px] text-muted-foreground text-center">{achievement.description}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      
-      {/* Mobile achievement names - horizontal scroll */}
-      <div className="mt-3 sm:hidden overflow-x-auto -mx-3 px-3">
-        <div className="flex gap-2 pb-1">
-          {achievements.filter(a => a.unlocked).slice(0, 4).map((achievement) => (
-            <div 
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+          {achievements.map((achievement, index) => (
+            <motion.div
               key={achievement.id}
-              className="flex-shrink-0 px-2 py-1 bg-secondary rounded-full"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              className="relative group"
             >
-              <span className="text-[10px] text-foreground font-medium">{achievement.name}</span>
-            </div>
+              <motion.div
+                className={cn(
+                  "w-full aspect-square rounded-lg sm:rounded-xl flex items-center justify-center transition-all",
+                  achievement.unlocked
+                    ? `bg-gradient-to-br ${achievement.color} shadow-lg`
+                    : "bg-muted/50 opacity-40"
+                )}
+                whileHover={achievement.unlocked ? { scale: 1.1 } : {}}
+                whileTap={achievement.unlocked ? { scale: 0.95 } : {}}
+              >
+                <span className={cn(
+                  "scale-75 sm:scale-100",
+                  achievement.unlocked ? "text-white" : "text-muted-foreground"
+                )}>
+                  {achievement.icon}
+                </span>
+              </motion.div>
+              
+              {/* Progress indicator */}
+              {!achievement.unlocked && achievement.progress !== undefined && (
+                <div className="absolute -bottom-0.5 sm:-bottom-1 left-1/2 -translate-x-1/2 text-[8px] sm:text-[10px] text-muted-foreground font-medium">
+                  {achievement.progress}/{achievement.total}
+                </div>
+              )}
+
+              {/* Tooltip - hidden on mobile, visible on hover for desktop */}
+              <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[120px]">
+                <p className="text-xs font-medium text-foreground text-center">{achievement.name}</p>
+                <p className="text-[10px] text-muted-foreground text-center">{achievement.description}</p>
+              </div>
+            </motion.div>
           ))}
-          {achievements.filter(a => a.unlocked).length === 0 && (
-            <span className="text-[10px] text-muted-foreground">Complete desafios para desbloquear conquistas!</span>
-          )}
         </div>
-      </div>
-    </Card>
+        
+        {/* Mobile achievement names - horizontal scroll */}
+        <div className="mt-3 sm:hidden overflow-x-auto -mx-3 px-3">
+          <div className="flex gap-2 pb-1">
+            {achievements.filter(a => a.unlocked).slice(0, 4).map((achievement) => (
+              <div 
+                key={achievement.id}
+                className="flex-shrink-0 px-2 py-1 bg-secondary rounded-full"
+              >
+                <span className="text-[10px] text-foreground font-medium">{achievement.name}</span>
+              </div>
+            ))}
+            {achievements.filter(a => a.unlocked).length === 0 && (
+              <span className="text-[10px] text-muted-foreground">Complete desafios para desbloquear conquistas!</span>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Achievement Celebration Modal */}
+      <AnimatePresence>
+        {showCelebration && newlyUnlocked && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={closeCelebration}
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: 180 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+              className="bg-card rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{ 
+                  duration: 0.5, 
+                  repeat: 2,
+                  repeatType: 'reverse' 
+                }}
+                className={cn(
+                  "w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-2xl bg-gradient-to-br flex items-center justify-center mb-4",
+                  newlyUnlocked.color
+                )}
+              >
+                <span className="text-white scale-150">
+                  {newlyUnlocked.icon}
+                </span>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-500">Nova Conquista!</span>
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                </div>
+                
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                  {newlyUnlocked.name}
+                </h2>
+                
+                <p className="text-muted-foreground mb-6">
+                  {newlyUnlocked.description}
+                </p>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={closeCelebration}
+                  className="w-full py-3 px-6 bg-gradient-to-r from-primary to-accent text-white font-semibold rounded-xl"
+                >
+                  Continuar 🎉
+                </motion.button>
+              </motion.div>
+              
+              {/* Close button */}
+              <button
+                onClick={closeCelebration}
+                className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

@@ -12,6 +12,7 @@ import WaterReminder from '@/components/WaterReminder';
 import TreatmentReminder from '@/components/TreatmentReminder';
 import DailyDietSuggestion from '@/components/DailyDietSuggestion';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
+import ProgressSummary from '@/components/ProgressSummary';
 import { useNavigate } from 'react-router-dom';
 import { IMCCategory } from '@/types';
 
@@ -256,6 +257,11 @@ const Dashboard = () => {
               </div>
             </Card>
           </motion.div>
+        )}
+
+        {/* Progress Summary */}
+        {profile?.imc !== undefined && profile.imc > 0 && (
+          <ProgressSummary />
         )}
       </div>
 
