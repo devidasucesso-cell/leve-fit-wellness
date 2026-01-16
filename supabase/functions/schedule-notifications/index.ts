@@ -210,7 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('user_id', setting.user_id);
         }
       }
-    } else if (type === 'daily_summary') {
+} else if (type === 'daily_summary') {
       // Daily summary notifications - sent at 8pm
       console.log('Sending daily summary notifications');
       
@@ -276,6 +276,61 @@ const handler = async (req: Request): Promise<Response> => {
           if (success) successCount++;
         }
       }
+    } else if (type === 'imc_reminder') {
+      // IMC update reminder - check users who haven't updated in 7+ days
+      console.log('Checking IMC update reminders');
+      
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      // Get all users with push subscriptions
+      const { data: subscriptions, error } = await supabase
+        .from('push_subscriptions')
+        .select('*');
+      
+      if (error) throw error;
+      
+      const userIds = [...new Set(subscriptions?.map(s => s.user_id) || [])];
+      
+      for (const userId of userIds) {
+        // Get user's last progress entry
+        const { data: lastProgress } = await supabase
+          .from('progress_history')
+          .select('date')
+          .eq('user_id', userId)
+          .order('date', { ascending: false })
+          .limit(1)
+          .single();
+        
+        // Check if last update was 7+ days ago
+        if (lastProgress && lastProgress.date <= sevenDaysAgo) {
+          totalUsers++;
+          
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('user_id', userId)
+            .single();
+          
+          const name = profile?.name?.split(' ')[0] || 'Usuário';
+          const userSubs = subscriptions?.filter(s => s.user_id === userId) || [];
+          
+          for (const sub of userSubs) {
+            const success = await sendPush(
+              { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+              {
+                title: `📏 Hora de atualizar seu IMC, ${name}!`,
+                body: 'Já se passaram 7 dias! Registre seu peso para acompanhar seu progresso.',
+                icon: '/pwa-192x192.png',
+                tag: 'levefit-imc-reminder-' + now.toISOString().split('T')[0],
+                url: '/dashboard'
+              }
+            );
+            if (success) successCount++;
+          }
+        }
+      }
+      
+      console.log(`IMC reminders: ${totalUsers} users notified`);
     }
 
     console.log(`Sent ${successCount} notifications to ${totalUsers} users`);
