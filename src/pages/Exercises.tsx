@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getExercisesByDifficulty } from '@/data/exercises';
+import { getExercisesByDifficultyAndCategory, getCategoriesForDifficulty, exerciseCategoryLabels } from '@/data/exercises';
 import ExerciseCard from '@/components/ExerciseCard';
 import Navigation from '@/components/Navigation';
 import WaterReminder from '@/components/WaterReminder';
 import { useNavigate } from 'react-router-dom';
+import { ExerciseCategory } from '@/types';
 
 type Difficulty = 'easy' | 'moderate' | 'intense';
 
@@ -20,9 +21,21 @@ const difficultyConfig = {
 const Exercises = () => {
   const navigate = useNavigate();
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('easy');
+  const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | null>(null);
   
-  const exercises = getExercisesByDifficulty(selectedDifficulty);
+  const categories = useMemo(() => getCategoriesForDifficulty(selectedDifficulty), [selectedDifficulty]);
+  
+  const exercises = useMemo(() => 
+    getExercisesByDifficultyAndCategory(selectedDifficulty, selectedCategory || undefined),
+    [selectedDifficulty, selectedCategory]
+  );
+  
   const config = difficultyConfig[selectedDifficulty];
+
+  const handleDifficultyChange = (difficulty: Difficulty) => {
+    setSelectedDifficulty(difficulty);
+    setSelectedCategory(null);
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -44,12 +57,12 @@ const Exercises = () => {
         </div>
       </div>
 
-      {/* Difficulty Selector */}
-      <div className="p-4 -mt-4">
+      <div className="p-4 -mt-4 space-y-4">
+        {/* Difficulty Selector */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex gap-2 mb-6"
+          className="flex gap-2"
         >
           {(Object.keys(difficultyConfig) as Difficulty[]).map((difficulty) => {
             const dConfig = difficultyConfig[difficulty];
@@ -58,7 +71,7 @@ const Exercises = () => {
             return (
               <Button
                 key={difficulty}
-                onClick={() => setSelectedDifficulty(difficulty)}
+                onClick={() => handleDifficultyChange(difficulty)}
                 className={cn(
                   "flex-1 h-12 transition-all font-semibold",
                   isSelected ? dConfig.color : "bg-card hover:bg-secondary text-foreground"
@@ -71,12 +84,60 @@ const Exercises = () => {
           })}
         </motion.div>
 
+        {/* Category Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="overflow-x-auto pb-2"
+        >
+          <div className="flex gap-2 min-w-max">
+            <Button
+              size="sm"
+              variant={selectedCategory === null ? "default" : "outline"}
+              onClick={() => setSelectedCategory(null)}
+              className={cn(
+                "whitespace-nowrap",
+                selectedCategory === null && "bg-primary text-primary-foreground"
+              )}
+            >
+              Todos ({exercises.length})
+            </Button>
+            {categories.map((category) => {
+              const categoryInfo = exerciseCategoryLabels[category];
+              const count = getExercisesByDifficultyAndCategory(selectedDifficulty, category).length;
+              const isSelected = selectedCategory === category;
+              
+              return (
+                <Button
+                  key={category}
+                  size="sm"
+                  variant={isSelected ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(category)}
+                  className={cn(
+                    "whitespace-nowrap",
+                    isSelected && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {categoryInfo.icon} {categoryInfo.label} ({count})
+                </Button>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {/* Exercises Grid */}
         <div className="space-y-3">
           {exercises.map((exercise, index) => (
             <ExerciseCard key={exercise.id} exercise={exercise} index={index} />
           ))}
         </div>
+        
+        {exercises.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhum exercício encontrado para esta categoria.
+          </div>
+        )}
       </div>
 
       <WaterReminder />

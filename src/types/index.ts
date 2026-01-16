@@ -34,10 +34,24 @@ export interface DetoxDrink {
   image?: string;
 }
 
+export type ExerciseCategory = 
+  | 'caminhada' 
+  | 'corrida' 
+  | 'danca' 
+  | 'yoga_pilates' 
+  | 'natacao_aquatico' 
+  | 'ciclismo' 
+  | 'esportes' 
+  | 'funcional' 
+  | 'alongamento' 
+  | 'musculacao'
+  | 'outros';
+
 export interface Exercise {
   id: string;
   name: string;
   difficulty: 'easy' | 'moderate' | 'intense';
+  category: ExerciseCategory;
   duration: string;
   calories: number;
   description: string;
