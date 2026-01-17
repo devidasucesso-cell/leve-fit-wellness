@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Leaf, Pill, Droplets, LogOut, Shield, Settings } from 'lucide-react';
+import { Leaf, Pill, Droplets, LogOut, Shield, Settings, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,6 +13,7 @@ import TreatmentReminder from '@/components/TreatmentReminder';
 import DailyDietSuggestion from '@/components/DailyDietSuggestion';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
 import ProgressSummary from '@/components/ProgressSummary';
+import ReferralCard from '@/components/ReferralCard';
 import { useNavigate } from 'react-router-dom';
 import { IMCCategory } from '@/types';
 
@@ -141,37 +142,39 @@ const Dashboard = () => {
 
       {/* Content */}
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 -mt-4 max-w-4xl mx-auto">
-        {/* Capsule Reminder */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="p-4 shadow-md bg-card">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                  capsuleTakenToday ? 'bg-success/20' : 'gradient-primary shadow-glow'
-                }`}>
-                  <Pill className={`w-6 h-6 ${capsuleTakenToday ? 'text-success' : 'text-primary-foreground'}`} />
+        {/* Capsule Reminder - Hidden after taken */}
+        <AnimatePresence>
+          {!capsuleTakenToday && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="p-4 shadow-md bg-card">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center gradient-primary shadow-glow">
+                      <Pill className="w-6 h-6 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Lembrete LeveFit</h3>
+                      <p className="text-sm text-muted-foreground">
+                        2 cápsulas/dia, antes das refeições
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => markCapsuleTaken(today)}
+                    className="gradient-primary text-primary-foreground shadow-glow"
+                  >
+                    Tomei!
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Lembrete LeveFit</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {capsuleTakenToday ? 'Você já tomou hoje! ✅' : '2 cápsulas/dia, antes das refeições'}
-                  </p>
-                </div>
-              </div>
-              {!capsuleTakenToday && (
-                <Button 
-                  onClick={() => markCapsuleTaken(today)}
-                  className="gradient-primary text-primary-foreground shadow-glow"
-                >
-                  Tomei!
-                </Button>
-              )}
-            </div>
-          </Card>
-        </motion.div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Progress Summary - Moved to top */}
         {profile?.imc !== undefined && profile.imc > 0 && (
@@ -197,6 +200,9 @@ const Dashboard = () => {
             <DailyDietSuggestion imcCategory={profile.imc_category as IMCCategory} />
           </motion.div>
         )}
+
+        {/* Referral Card - Indique e Ganhe */}
+        <ReferralCard />
       </div>
 
       <WaterReminder />

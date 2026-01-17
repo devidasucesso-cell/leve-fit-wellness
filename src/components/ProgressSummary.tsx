@@ -53,8 +53,7 @@ const ProgressSummary = () => {
       transition={{ delay: 0.4 }}
     >
       <Card 
-        className="p-3 sm:p-4 bg-gradient-to-br from-primary/5 via-card to-accent/5 border-primary/20 cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={() => navigate('/progress')}
+        className="p-3 sm:p-4 bg-gradient-to-br from-primary/5 via-card to-accent/5 border-primary/20"
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -66,7 +65,6 @@ const ProgressSummary = () => {
               <p className="text-[10px] sm:text-xs text-muted-foreground">{stats.daysSinceStart} dias de jornada</p>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
