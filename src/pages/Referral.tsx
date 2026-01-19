@@ -2,29 +2,39 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Gift, Copy, Share2, Check, Users, Star, Truck } from 'lucide-react';
+import { ArrowLeft, Gift, Copy, Share2, Check, Users, Star, Wallet, Clock, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import WaterReminder from '@/components/WaterReminder';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useWallet } from '@/hooks/useWallet';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const Referral = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const { 
+    balance, 
+    referrals, 
+    approvedReferrals, 
+    pendingReferrals,
+    convertedReferrals,
+    loading, 
+    referralCode, 
+    referralLink,
+    transactions
+  } = useWallet();
 
-  // Generate referral code based on user id
-  const referralCode = user?.id ? `LEVEFIT${user.id.slice(0, 6).toUpperCase()}` : 'LEVEFIT000000';
-  
-  const referralLink = `https://levefitapp.lovable.app/?ref=${referralCode}`;
-  const referralMessage = `🌿 Estou usando o LeveFit e estou adorando os resultados! Use meu código ${referralCode} para ganhar 10% de desconto no seu primeiro pedido. Acesse: ${referralLink}`;
+  const referralMessage = `🌿 Garanta seu LeveFit com 10% de desconto! Use meu código ${referralCode} na hora da compra. Acesse: ${referralLink}`;
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(referralMessage);
       setCopied(true);
-      toast.success('Código copiado!');
+      toast.success('Link copiado!');
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       toast.error('Não foi possível copiar');
@@ -35,7 +45,7 @@ const Referral = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'LeveFit - Indique e Ganhe',
+          title: 'LeveFit - Indique e Ganhe R$25',
           text: referralMessage,
         });
       } catch (error) {
@@ -48,23 +58,31 @@ const Referral = () => {
     }
   };
 
-  const benefits = [
-    {
-      icon: <Star className="w-5 h-5" />,
-      title: '10% de desconto',
-      description: 'Seu indicado ganha desconto no primeiro pedido'
-    },
-    {
-      icon: <Gift className="w-5 h-5" />,
-      title: 'Pontos de recompensa',
-      description: 'Ganhe pontos por cada indicação bem-sucedida'
-    },
-    {
-      icon: <Truck className="w-5 h-5" />,
-      title: 'Frete grátis',
-      description: 'Após 3 indicações, ganhe frete grátis'
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle2 className="w-3 h-3" />
+            Aprovado
+          </span>
+        );
+      case 'converted':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+            <Check className="w-3 h-3" />
+            Convertido
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <Clock className="w-3 h-3" />
+            Pendente
+          </span>
+        );
     }
-  ];
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -83,28 +101,31 @@ const Referral = () => {
             <h1 className="text-2xl font-bold font-display text-primary-foreground flex items-center gap-2">
               🎁 Indique e Ganhe
             </h1>
-            <p className="text-primary-foreground/80 text-sm">Convide amigos e ganhe recompensas</p>
+            <p className="text-primary-foreground/80 text-sm">Ganhe R$25 por cada indicação</p>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <Card className="p-4 bg-white/20 backdrop-blur border-white/20">
-            <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-white" />
-              <div>
-                <p className="text-white/80 text-xs">Indicados</p>
-                <p className="text-white font-bold text-lg">0</p>
-              </div>
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <Card className="p-3 bg-white/20 backdrop-blur border-white/20">
+            <div className="flex flex-col items-center">
+              <Users className="w-6 h-6 text-white mb-1" />
+              <p className="text-white font-bold text-lg">{referrals.length}</p>
+              <p className="text-white/80 text-xs">Indicações</p>
             </div>
           </Card>
-          <Card className="p-4 bg-white/20 backdrop-blur border-white/20">
-            <div className="flex items-center gap-3">
-              <Star className="w-8 h-8 text-white" />
-              <div>
-                <p className="text-white/80 text-xs">Pontos</p>
-                <p className="text-white font-bold text-lg">0</p>
-              </div>
+          <Card className="p-3 bg-white/20 backdrop-blur border-white/20">
+            <div className="flex flex-col items-center">
+              <CheckCircle2 className="w-6 h-6 text-white mb-1" />
+              <p className="text-white font-bold text-lg">{approvedReferrals.length}</p>
+              <p className="text-white/80 text-xs">Aprovadas</p>
+            </div>
+          </Card>
+          <Card className="p-3 bg-white/20 backdrop-blur border-white/20">
+            <div className="flex flex-col items-center">
+              <Wallet className="w-6 h-6 text-white mb-1" />
+              <p className="text-white font-bold text-lg">R${balance.toFixed(2)}</p>
+              <p className="text-white/80 text-xs">Saldo</p>
             </div>
           </Card>
         </div>
@@ -118,12 +139,15 @@ const Referral = () => {
         >
           <Card className="p-6 bg-card">
             <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground mb-2">Seu código de indicação</p>
-              <div className="bg-secondary rounded-xl p-4 mb-4">
-                <p className="text-2xl font-bold font-mono text-foreground tracking-wider">
-                  {referralCode}
+              <p className="text-sm text-muted-foreground mb-2">Seu link de indicação</p>
+              <div className="bg-secondary rounded-xl p-4 mb-2">
+                <p className="text-sm font-mono text-foreground break-all">
+                  {referralLink}
                 </p>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Código: <span className="font-bold text-primary">{referralCode}</span>
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -146,36 +170,45 @@ const Referral = () => {
           </Card>
         </motion.div>
 
-        {/* Benefits */}
+        {/* Wallet Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="p-6 bg-card">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-primary" />
-              Benefícios
-            </h3>
-            <div className="space-y-4">
-              {benefits.map((benefit, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 + index * 0.1 }}
-                  className="flex items-start gap-3"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white">{benefit.icon}</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">{benefit.title}</h4>
-                    <p className="text-sm text-muted-foreground">{benefit.description}</p>
-                  </div>
-                </motion.div>
-              ))}
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Minha Carteira</h3>
+                  <p className="text-sm text-muted-foreground">Saldo disponível</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  R$ {balance.toFixed(2)}
+                </p>
+              </div>
             </div>
+
+            {transactions.length > 0 && (
+              <div className="border-t border-green-200 dark:border-green-800 pt-4 mt-4">
+                <p className="text-sm font-medium text-foreground mb-2">Últimas transações</p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {transactions.slice(0, 3).map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{tx.description || 'Crédito de indicação'}</span>
+                      <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                        {tx.amount > 0 ? '+' : ''}R$ {tx.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
         </motion.div>
 
@@ -183,26 +216,70 @@ const Referral = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
           <Card className="p-6 bg-card">
-            <h3 className="font-semibold text-foreground mb-4">Como funciona?</h3>
-            <ol className="space-y-3">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Gift className="w-5 h-5 text-primary" />
+              Como funciona?
+            </h3>
+            <ol className="space-y-4">
               {[
-                'Compartilhe seu código com amigos e familiares',
-                'Seu indicado usa o código na primeira compra',
-                'Vocês dois ganham benefícios exclusivos!',
-              ].map((step, index) => (
-                <li key={index} className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full gradient-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-                    {index + 1}
+                { step: 1, title: 'Compartilhe seu link', desc: 'Envie seu link único para amigos e familiares' },
+                { step: 2, title: 'Seu amigo compra', desc: 'Quando ele comprar usando seu link na Kiwify' },
+                { step: 3, title: 'Você ganha R$25', desc: 'O crédito é liberado em sua carteira' },
+              ].map((item) => (
+                <li key={item.step} className="flex items-start gap-3">
+                  <span className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {item.step}
                   </span>
-                  <span className="text-sm text-muted-foreground">{step}</span>
+                  <div>
+                    <p className="font-medium text-foreground">{item.title}</p>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  </div>
                 </li>
               ))}
             </ol>
           </Card>
         </motion.div>
+
+        {/* Referrals List */}
+        {referrals.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="p-6 bg-card">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Minhas Indicações ({referrals.length})
+              </h3>
+              <div className="space-y-3">
+                {referrals.map((referral) => (
+                  <div key={referral.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {referral.referred_email || 'Aguardando...'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(referral.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(referral.status)}
+                      {referral.status === 'approved' && (
+                        <span className="text-sm font-bold text-green-600">
+                          +R${referral.credit_amount.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+        )}
       </div>
 
       <WaterReminder />
