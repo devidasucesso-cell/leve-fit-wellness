@@ -10,6 +10,9 @@ import WaterReminder from '@/components/WaterReminder';
 import { useNavigate } from 'react-router-dom';
 import { ExerciseCategory } from '@/types';
 import { Card } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import PremiumLock from '@/components/PremiumLock';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type Difficulty = 'easy' | 'moderate' | 'intense';
 
@@ -36,14 +39,20 @@ const categoryImages: Record<ExerciseCategory, string> = {
 
 const Exercises = () => {
   const navigate = useNavigate();
+  const { isCodeValidated } = useAuth();
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('easy');
   const [expandedCategory, setExpandedCategory] = useState<ExerciseCategory | null>(null);
+  const [showPremiumLock, setShowPremiumLock] = useState(false);
   
   const categories = useMemo(() => getCategoriesForDifficulty(selectedDifficulty), [selectedDifficulty]);
   
   const config = difficultyConfig[selectedDifficulty];
 
   const handleDifficultyChange = (difficulty: Difficulty) => {
+    if (!isCodeValidated && difficulty !== 'easy') {
+      setShowPremiumLock(true);
+      return;
+    }
     setSelectedDifficulty(difficulty);
     setExpandedCategory(null);
   };
@@ -55,7 +64,7 @@ const Exercises = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className={cn("p-6 pb-8 rounded-b-3xl", config.color)}>
+      <div className={cn("p-6 pb-8 rounded-b-3xl transition-colors duration-300", config.color)}>
         <div className="flex items-center gap-3 mb-4">
           <Button 
             variant="ghost" 
@@ -82,18 +91,25 @@ const Exercises = () => {
           {(Object.keys(difficultyConfig) as Difficulty[]).map((difficulty) => {
             const dConfig = difficultyConfig[difficulty];
             const isSelected = selectedDifficulty === difficulty;
+            const isLocked = !isCodeValidated && difficulty !== 'easy';
             
             return (
               <Button
                 key={difficulty}
                 onClick={() => handleDifficultyChange(difficulty)}
                 className={cn(
-                  "flex-1 h-12 transition-all font-semibold",
-                  isSelected ? dConfig.color : "bg-card hover:bg-secondary text-foreground"
+                  "flex-1 h-12 transition-all font-semibold relative overflow-hidden",
+                  isSelected ? dConfig.color : "bg-card hover:bg-secondary text-foreground",
+                  isLocked && "opacity-70"
                 )}
                 variant={isSelected ? "default" : "outline"}
               >
                 {dConfig.label}
+                {isLocked && (
+                  <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                    <span className="text-lg">🔒</span>
+                  </div>
+                )}
               </Button>
             );
           })}
@@ -160,13 +176,19 @@ const Exercises = () => {
                       className="overflow-hidden"
                     >
                       <div className="pt-3 space-y-3">
-                        {exercises.map((exercise, exerciseIndex) => (
-                          <ExerciseCard 
-                            key={exercise.id} 
-                            exercise={exercise} 
-                            index={exerciseIndex} 
-                          />
-                        ))}
+                        {exercises.map((exercise, exerciseIndex) => {
+                           // Logic for locking specific exercises if needed
+                           // Currently user asked to lock by difficulty category, which is handled above
+                           // But if we wanted to lock individual exercises beyond "Easy", we could do it here
+                           
+                           return (
+                             <ExerciseCard 
+                               key={exercise.id} 
+                               exercise={exercise} 
+                               index={exerciseIndex} 
+                             />
+                           );
+                        })}
                       </div>
                     </motion.div>
                   )}
@@ -182,6 +204,12 @@ const Exercises = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={showPremiumLock} onOpenChange={setShowPremiumLock}>
+        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-sm">
+           <PremiumLock message="Mude sua rotina hoje" buttonText="Quero mudar minha rotina" />
+        </DialogContent>
+      </Dialog>
 
       <WaterReminder />
       <Navigation />

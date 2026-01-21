@@ -337,37 +337,64 @@ const Settings = () => {
               </div>
             )}
             
+            {/* Test Controls - Only visible when subscribed */}
             {isSubscribed && (
-              <div className="pt-3 mt-3 border-t border-border space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestNotification}
-                  disabled={testLoading}
-                  className="w-full"
-                >
-                  {testLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-2" />
-                  )}
-                  Enviar Notificação de Teste
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDailySummaryTest}
-                  disabled={summaryLoading}
-                  className="w-full text-muted-foreground"
-                >
-                  {summaryLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Bell className="w-4 h-4 mr-2" />
-                  )}
-                  Testar Resumo Diário
-                </Button>
-              </div>
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-4 pt-4 border-t border-border space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Teste de Conexão</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={sendTestNotification}
+                    className="h-8 text-xs"
+                  >
+                    <Send className="w-3 h-3 mr-2" />
+                    Enviar Push Teste
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Teste da Jornada</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setTestLoading(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('schedule-notifications', {
+                          body: { type: 'journey_daily' }
+                        });
+                        if (error) throw error;
+                        toast({
+                          title: 'Jornada Processada',
+                          description: `Notificações enviadas: ${data.sent || 0}`,
+                        });
+                      } catch (error) {
+                        console.error(error);
+                        toast({
+                          title: 'Erro',
+                          description: 'Falha ao processar jornada.',
+                          variant: 'destructive',
+                        });
+                      } finally {
+                        setTestLoading(false);
+                      }
+                    }}
+                    disabled={testLoading}
+                    className="h-8 text-xs"
+                  >
+                    {testLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Clock className="w-3 h-3 mr-2" />}
+                    Simular Envio Diário
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground bg-muted p-2 rounded">
+                  Use "Simular Envio Diário" para forçar a verificação de mensagens do dia (ex: Dia 1, 3, 5...).
+                </p>
+              </motion.div>
             )}
           </Card>
         </motion.div>
@@ -571,7 +598,7 @@ const Settings = () => {
               className="w-full h-12 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold transition-all"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              Comprar meu Kit
+              Quero garantir meu tratamento
               <ExternalLink className="w-4 h-4 ml-2" />
             </Button>
           </a>
